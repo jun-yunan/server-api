@@ -153,7 +153,7 @@ const app = new Elysia()
             };
           } catch (err) {
             console.log(err);
-            return error(500, "Something's wrong");
+            return error(500, 'Internal Server Error');
           }
         },
         {
@@ -166,6 +166,38 @@ const app = new Elysia()
   )
   .group('/api/blogs', (app) =>
     app
+      .get(
+        '/:blogId',
+        async ({ error, jwt, cookie: { auth }, params }) => {
+          try {
+            if (!params.blogId) {
+              return error(400, 'Missing blogId');
+            }
+
+            const token = await jwt.verify(auth.value);
+            if (!token) {
+              return error(401, 'Unauthorized');
+            }
+
+            const blog = await Blog.findById(params.blogId);
+            if (!blog) {
+              return error(404, 'Blog not found');
+            }
+
+            return {
+              status: 'success',
+              blog,
+            };
+          } catch (err) {
+            console.log(err);
+
+            return error(500, "Something's wrong");
+          }
+        },
+        {
+          params: t.Object({ blogId: t.String() }),
+        },
+      )
       .get('/', async ({ error, jwt, cookie: { auth } }) => {
         try {
           const token = await jwt.verify(auth.value);
@@ -178,11 +210,13 @@ const app = new Elysia()
             blogs,
           };
         } catch (err) {
-          error(500, "Something's wrong");
+          console.log(err);
+
+          return error(500, "Something's wrong");
         }
       })
       .post(
-        '/create-blog',
+        '/',
         async ({ body, jwt, headers, error, set, cookie: { auth } }) => {
           try {
             const { title, author, content } = body;
@@ -190,11 +224,10 @@ const app = new Elysia()
               return error(400, 'Missing title, author or content');
             }
 
-            const token = await jwt.verify(auth.value);
+            const identity = await jwt.verify(auth.value);
 
-            if (!token) {
-              set.status = 401;
-              return 'Unauthorized';
+            if (!identity) {
+              return error(401, 'Unauthorized');
             }
 
             const blog = await Blog.create({
@@ -214,6 +247,8 @@ const app = new Elysia()
               blog,
             };
           } catch (err) {
+            console.log(err);
+
             return error(500, "Something's wrong");
           }
         },
@@ -233,9 +268,9 @@ const app = new Elysia()
               return error(400, 'Missing blogId');
             }
 
-            const token = await jwt.verify(auth.value);
+            const identity = await jwt.verify(auth.value);
 
-            if (!token) {
+            if (!identity) {
               return error(401, 'Unauthorized');
             }
 
@@ -250,11 +285,66 @@ const app = new Elysia()
               blog,
             };
           } catch (err) {
-            error(500, "Something's wrong");
+            console.log(err);
+
+            return error(500, "Something's wrong");
           }
         },
         {
           params: t.Object({ blogId: t.String() }),
+        },
+      )
+      .put(
+        '/:blogId',
+        async ({ error, jwt, params, body, cookie: { auth } }) => {
+          try {
+            if (!params.blogId) {
+              return error(400, 'Missing blogId');
+            }
+            if (!body) {
+              return error(400, 'Missing body');
+            }
+
+            const identity = await jwt.verify(auth.value);
+
+            if (!identity) {
+              return error(401, 'Unauthorized');
+            }
+
+            const blog = await Blog.findByIdAndUpdate(
+              params.blogId,
+              {
+                author: body.author,
+                title: body.title,
+                content: body.content,
+                slug: body.title.toLowerCase().replace(/ /g, '-'),
+              },
+              {
+                new: true,
+              },
+            );
+
+            if (!blog) {
+              return error(404, 'Update failed');
+            }
+
+            return {
+              status: 'success',
+              blog,
+            };
+          } catch (err) {
+            console.log(err);
+
+            return error(500, "Something's wrong");
+          }
+        },
+        {
+          params: t.Object({ blogId: t.String() }),
+          body: t.Object({
+            title: t.String(),
+            author: t.String(),
+            content: t.String(),
+          }),
         },
       ),
   )
