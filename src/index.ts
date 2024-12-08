@@ -8,6 +8,8 @@ import User from './models/userModel';
 import { jwt } from '@elysiajs/jwt';
 import Blog from './models/blogModel';
 
+const port = process.env.PORT || 4000;
+
 connect();
 const app = new Elysia()
   .use(swagger())
@@ -63,6 +65,24 @@ const app = new Elysia()
   .group('/api/auth', (app) =>
     app
       .get('/', () => 'Hello API')
+      .get('/me', async ({ error, jwt, cookie: { auth } }) => {
+        try {
+          const identity = await jwt.verify(auth.value);
+
+          if (!identity) {
+            return error(401, 'Unauthorized');
+          }
+
+          const user = await User.findById(identity.id);
+          if (!user) {
+            return error(404, 'User not found');
+          }
+          return user.toJSON();
+        } catch (err) {
+          console.log(err);
+          return error(500, "Something's wrong");
+        }
+      })
       .post(
         '/sign-up',
         async ({ body, error }) => {
@@ -143,7 +163,9 @@ const app = new Elysia()
                 email: user.email,
               }),
               httpOnly: true,
-              maxAge: 7 * 86400,
+              // maxAge: 7 * 86400, //7 days
+              maxAge: 3000,
+              // sameSite: 'lax',
             });
 
             return {
@@ -348,7 +370,7 @@ const app = new Elysia()
         },
       ),
   )
-  .listen(8080);
+  .listen(port);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
