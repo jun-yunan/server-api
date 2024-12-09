@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia';
 import jwt from '@elysiajs/jwt';
 import User from '../models/userModel';
-
+import fs from 'fs/promises';
 import cloudinary from 'cloudinary';
 
 class UserController {
@@ -70,12 +70,12 @@ export const user = new Elysia()
       })
       .post(
         '/me/update-avatar',
-        // upload.single('image'),
         async ({ jwt, cookie: { auth }, error, request }) => {
           try {
             const data = await request.formData();
             const file: File | null = data.get('image') as unknown as File;
-            if (!file) {
+
+            if (!file || file.size === 0) {
               return error(400, 'Missing image');
             }
 
@@ -85,14 +85,40 @@ export const user = new Elysia()
               return error(401, 'Unauthorized');
             }
 
-            // const upload = await cloudinary.v2.uploader.upload();
-
             const bytes = await file.arrayBuffer();
-            const buffer = Buffer.from(bytes);
-            return { buffer };
+            const filePath = `${process.cwd()}/temp/${Date.now()}-${
+              identity.id
+            }-${file.name}`;
+            await fs.writeFile(filePath, new Uint8Array(bytes));
+
+            const upload = await cloudinary.v2.uploader.upload(filePath, {
+              folder: 'avatars',
+              use_filename: true,
+            });
+
+            if (!upload) {
+              return error(500, 'Upload failed');
+            }
+
+            await fs.unlink(filePath);
+
+            const user = await User.findByIdAndUpdate(
+              identity.id,
+              {
+                imageUrl: upload.secure_url,
+              },
+              {
+                new: true,
+              },
+            );
+
+            if (!user) {
+              return error(500, 'Update failed');
+            }
+
+            return { status: 'success', url: upload.secure_url, user };
           } catch (err) {
             console.log(err);
-
             return error(500, "Something's wrong");
           }
         },
