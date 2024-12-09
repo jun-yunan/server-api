@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 // Định nghĩa Schema cho User
 const userSchema = new mongoose.Schema(
   {
+    username: {
+      type: String,
+      trim: true,
+      unique: true,
+    },
     name: {
       type: String,
       required: true,
@@ -18,6 +23,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       minlength: 6,
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    bio: {
+      type: String,
+      trim: true,
+    },
+    personalWebsite: {
+      type: String,
+      trim: true,
+    },
+    dateOfBirth: {
+      type: Date,
     },
     role: {
       type: String,
