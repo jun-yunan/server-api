@@ -11,9 +11,12 @@
     "@elysiajs/jwt": "^1.1.1",
     "@elysiajs/swagger": "^1.1.6",
     "@types/bcrypt": "^5.0.2",
+    "@types/multer": "^1.4.12",
     "bcrypt": "^5.1.1",
+    "cloudinary": "^2.5.1",
     "elysia": "latest",
     "mongoose": "^8.8.1",
+    "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.4"
   },
   "devDependencies": {
