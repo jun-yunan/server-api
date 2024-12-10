@@ -3,6 +3,7 @@ import jwt from '@elysiajs/jwt';
 import User from '../models/userModel';
 import fs from 'fs/promises';
 import cloudinary from 'cloudinary';
+import bcrypt from 'bcrypt';
 
 class UserController {
   constructor(public data: string[] = ['Moonhalo']) {}
@@ -121,6 +122,73 @@ export const user = new Elysia()
             console.log(err);
             return error(500, "Something's wrong");
           }
+        },
+      )
+      .put(
+        '/me/update-password',
+        async ({ body, jwt, cookie: { auth }, error }) => {
+          try {
+            const { oldPassword, newPassword } = body;
+
+            if (!oldPassword || !newPassword) {
+              return error(400, 'Missing oldPassword or newPassword');
+            }
+
+            const identity = await jwt.verify(auth.value);
+
+            if (!identity) {
+              return error(401, 'Unauthorized');
+            }
+
+            const user = await User.findById(identity.id);
+            if (!user) {
+              return error(404, 'User not found');
+            }
+
+            const correctPassword = await bcrypt.compare(
+              oldPassword,
+              user.password,
+            );
+
+            if (!correctPassword) {
+              return error(401, 'Incorrect old password');
+            }
+
+            if (oldPassword === newPassword) {
+              return error(
+                400,
+                'New password must be different from old password',
+              );
+            }
+
+            const hashNewPassword = await bcrypt.hash(newPassword, 10);
+
+            const updatedUser = await User.findByIdAndUpdate(
+              identity.id,
+              {
+                password: hashNewPassword,
+              },
+              {
+                new: true,
+              },
+            );
+
+            if (!updatedUser) {
+              return error(500, 'Update failed');
+            }
+
+            return { status: 'success', user: updatedUser };
+          } catch (err) {
+            console.log(err);
+
+            return error(500, "Something's wrong");
+          }
+        },
+        {
+          body: t.Object({
+            oldPassword: t.String(),
+            newPassword: t.String(),
+          }),
         },
       )
       .put(

@@ -1,10 +1,9 @@
 import { Elysia, t } from 'elysia';
 import Blog from '../models/blogModel';
 import jwt from '@elysiajs/jwt';
+import User from '../models/userModel';
 
-class BlogController {
-  constructor(public data: string[] = ['Moonhalo']) {}
-}
+class BlogController {}
 
 export const blog = new Elysia()
   .decorate('blogController', new BlogController())
@@ -67,10 +66,10 @@ export const blog = new Elysia()
       })
       .post(
         '/',
-        async ({ body, jwt, headers, error, set, cookie: { auth } }) => {
+        async ({ body, jwt, error, cookie: { auth } }) => {
           try {
-            const { title, author, content } = body;
-            if (!title || !author || !content) {
+            const { title, tags, content, published } = body;
+            if (!title || !content) {
               return error(400, 'Missing title, author or content');
             }
 
@@ -80,12 +79,18 @@ export const blog = new Elysia()
               return error(401, 'Unauthorized');
             }
 
+            const user = await User.findById(identity.id);
+            if (!user) {
+              return error(404, 'User not found');
+            }
+
             const blog = await Blog.create({
-              author,
+              author: user._id,
               title,
               content,
+              tags,
               slug: title.toLowerCase().replace(/ /g, '-'),
-              published: false,
+              published,
             });
 
             if (!blog) {
@@ -105,8 +110,9 @@ export const blog = new Elysia()
         {
           body: t.Object({
             title: t.String(),
-            author: t.String(),
+            tags: t.Optional(t.Array(t.String())),
             content: t.String(),
+            published: t.Boolean(),
           }),
         },
       )

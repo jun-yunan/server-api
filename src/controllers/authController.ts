@@ -47,15 +47,13 @@ export const auth = new Elysia()
         '/sign-up',
         async ({ body, error }) => {
           try {
-            const { name, email, password } = body;
-            if (!name || !email || !password) {
+            const { username, email, password } = body;
+            if (!username || !email || !password) {
               return error(
                 400,
-                "Bad Request: Missing 'name', 'email' or 'password'",
+                "Bad Request: Missing 'username', 'email' or 'password'",
               );
             }
-
-            const hashPassword = await bcrypt.hash(password, 10);
 
             const existingUser = await User.findOne({ email });
 
@@ -63,8 +61,10 @@ export const auth = new Elysia()
               return error(400, 'Email already exists');
             }
 
+            const hashPassword = await bcrypt.hash(password, 10);
+
             const user = await User.create({
-              name,
+              username,
               email,
               password: hashPassword,
             });
@@ -84,7 +84,7 @@ export const auth = new Elysia()
         },
         {
           body: t.Object({
-            name: t.String(),
+            username: t.String(),
             email: t.String(),
             password: t.String(),
           }),
@@ -119,7 +119,7 @@ export const auth = new Elysia()
               value: await jwt.sign({
                 id: user._id.toString(),
                 role: user.role,
-                name: user.name,
+                username: user.username,
                 email: user.email,
               }),
               httpOnly: true,
