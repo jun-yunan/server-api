@@ -2,6 +2,17 @@ import { Elysia, t } from 'elysia';
 import Blog from '../models/blogModel';
 import jwt from '@elysiajs/jwt';
 import User from '../models/userModel';
+import { convertBase64ToImage } from '../utils/convertBase64ToImage';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import cloudinary from 'cloudinary';
+import fs from 'fs';
+
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 class BlogController {}
 
@@ -49,15 +60,21 @@ export const blog = new Elysia()
       )
       .get('/', async ({ error, jwt, cookie: { auth } }) => {
         try {
-          const token = await jwt.verify(auth.value);
-          if (!token) {
+          const identity = await jwt.verify(auth.value);
+          if (!identity) {
             return error(401, 'Unauthorized');
           }
-          const blogs = await Blog.find();
-          return {
-            status: 'success',
-            blogs,
-          };
+
+          const user = await User.findById(identity.id);
+          if (!user) {
+            return error(404, 'User not found');
+          }
+
+          const blogs = await Blog.find({ author: user._id })
+            .sort({ createdAt: -1 })
+            .exec();
+
+          return blogs;
         } catch (err) {
           console.log(err);
 
@@ -84,10 +101,70 @@ export const blog = new Elysia()
               return error(404, 'User not found');
             }
 
+            const contentParsed = JSON.parse(content);
+
+            const base64Images: any[] = [];
+
+            contentParsed.ops.forEach((op: any) => {
+              if (
+                op.insert &&
+                op.insert.image &&
+                op.insert.image.startsWith('data:image')
+              ) {
+                base64Images.push(op.insert.image);
+              }
+            });
+
+            const outputFilePaths: string[] = [];
+
+            if (base64Images.length !== 0) {
+              base64Images.forEach((base64Image, index) => {
+                const outputFilePath = `${process.cwd()}/temp/${
+                  user._id
+                }-${Date.now()}-${uuidv4()}.png`;
+                convertBase64ToImage(base64Image, outputFilePath);
+                outputFilePaths.push(outputFilePath);
+              });
+            }
+
+            const cloudinaryPromises = outputFilePaths.map((outputFilePath) => {
+              return cloudinary.v2.uploader.upload(outputFilePath, {
+                folder: 'blogs',
+                use_filename: true,
+              });
+            });
+
+            const cloudinaryResults = await Promise.all(cloudinaryPromises);
+
+            if (!cloudinaryResults) {
+              return error(500, "Can't upload images to cloudinary");
+            }
+
+            outputFilePaths.forEach((outputFilePath) =>
+              fs.unlinkSync(outputFilePath),
+            );
+
+            const imageUrls = cloudinaryResults.map(
+              (result) => result.secure_url,
+            );
+
+            contentParsed.ops.forEach((op: any) => {
+              if (
+                op.insert &&
+                op.insert.image &&
+                op.insert.image.startsWith('data:image')
+              ) {
+                const index = base64Images.indexOf(op.insert.image);
+                if (index !== -1) {
+                  op.insert.image = imageUrls[index];
+                }
+              }
+            });
+
             const blog = await Blog.create({
               author: user._id,
               title,
-              content,
+              content: JSON.stringify(contentParsed),
               tags,
               slug: title.toLowerCase().replace(/ /g, '-'),
               published,
@@ -98,9 +175,30 @@ export const blog = new Elysia()
             }
 
             return {
-              status: 'success',
+              base64Images,
+              outputFilePaths,
+              imageUrls,
+              contentParsed,
               blog,
             };
+
+            // const blog = await Blog.create({
+            //   author: user._id,
+            //   title,
+            //   content,
+            //   tags,
+            //   slug: title.toLowerCase().replace(/ /g, '-'),
+            //   published,
+            // });
+
+            // if (!blog) {
+            //   return error(500, "Can't create blog");
+            // }
+
+            // return {
+            //   status: 'success',
+            //   blog,
+            // };
           } catch (err) {
             console.log(err);
 
