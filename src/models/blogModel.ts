@@ -9,6 +9,7 @@ const blogSchema = new Schema(
       required: true,
     },
     slug: String,
+    imageUrl: String,
     published: Boolean,
     author: {
       type: Schema.Types.ObjectId,

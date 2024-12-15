@@ -48,11 +48,18 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'admin'],
       default: 'user',
     },
+    blogs: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Blog',
+      },
+    ],
   },
   { timestamps: true },
 );
 
 // Tạo mô hình User từ Schema
+userSchema.index({ username: 1 });
 const User = mongoose.model('User', userSchema);
 
 export default User;

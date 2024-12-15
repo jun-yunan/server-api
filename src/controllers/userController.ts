@@ -4,6 +4,7 @@ import User from '../models/userModel';
 import fs from 'fs/promises';
 import cloudinary from 'cloudinary';
 import bcrypt from 'bcrypt';
+import Blog from '../models/blogModel';
 
 class UserController {
   constructor(public data: string[] = ['Moonhalo']) {}
@@ -191,6 +192,45 @@ export const user = new Elysia()
           }),
         },
       )
+      .get(
+        '/check-username',
+        async ({ jwt, query, error, cookie: { auth } }) => {
+          try {
+            const { userId, username } = query;
+            if (!userId || !username) {
+              return error(400, 'Missing userId or username');
+            }
+
+            const identity = await jwt.verify(auth.value);
+
+            if (!identity) {
+              return error(401, 'Unauthorized');
+            }
+
+            const user = await User.findById(userId);
+
+            if (!user) {
+              return error(404, 'User not found');
+            }
+
+            const usernameExists = await User.findOne({ username });
+
+            if (usernameExists && usernameExists.id !== userId) {
+              return error(400, 'Username already exists');
+            }
+
+            return { status: 'success', query };
+          } catch (err) {
+            return error(500, "Something's wrong");
+          }
+        },
+        {
+          query: t.Object({
+            username: t.String(),
+            userId: t.String(),
+          }),
+        },
+      )
       .put(
         '/:userId',
         async ({ jwt, cookie: { auth }, error, params, body }) => {
@@ -221,6 +261,14 @@ export const user = new Elysia()
 
             if (!existingUser) {
               return error(404, 'User not found');
+            }
+
+            if (username) {
+              const usernameExists = await User.findOne({ username });
+
+              if (usernameExists && usernameExists.id !== userId) {
+                return error(400, 'Username already exists');
+              }
             }
 
             const user = await User.findByIdAndUpdate(
@@ -262,6 +310,76 @@ export const user = new Elysia()
             personalWebsite: t.Optional(t.String()),
             dateOfBirth: t.Optional(t.Date()),
           }),
+        },
+      )
+      .get('/me/blogs', async ({ jwt, error, cookie: { auth } }) => {
+        try {
+          const identity = await jwt.verify(auth.value);
+
+          if (!identity) {
+            return error(401, 'Unauthorized');
+          }
+
+          const user = await User.findById(identity.id);
+
+          if (!user) {
+            return error(404, 'User not found');
+          }
+
+          const blogs = await Blog.find({ author: identity.id })
+            .sort({ createdAt: -1 })
+            .populate(
+              'author',
+              'email name username imageUrl createdAt bio personalWebsite',
+            )
+            .exec();
+
+          if (!blogs || blogs.length === 0) {
+            return error(404, 'Blogs not found');
+          }
+
+          return blogs;
+        } catch (err) {
+          console.log(err);
+          return error(500, "Something's wrong");
+        }
+      })
+      .get(
+        '/blogs/:authorId',
+        async ({ error, params }) => {
+          try {
+            const { authorId } = params;
+
+            if (!authorId) {
+              return error(400, 'Missing authorId');
+            }
+
+            const author = await User.findById(authorId);
+
+            if (!author) {
+              return error(404, 'Author not found');
+            }
+
+            const blogs = await Blog.find({ author: authorId })
+              .sort({ createdAt: -1 })
+              .populate(
+                'author',
+                'email name username imageUrl createdAt bio personalWebsite',
+              )
+              .exec();
+
+            if (!blogs || blogs.length === 0) {
+              return error(404, 'Blogs not found');
+            }
+
+            return blogs;
+          } catch (err) {
+            console.log(err);
+            return error(500, "Something's wrong");
+          }
+        },
+        {
+          params: t.Object({ authorId: t.String() }),
         },
       ),
   );

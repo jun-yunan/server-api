@@ -34,20 +34,23 @@ export const blog = new Elysia()
               return error(400, 'Missing blogId');
             }
 
-            const token = await jwt.verify(auth.value);
-            if (!token) {
-              return error(401, 'Unauthorized');
-            }
+            // const token = await jwt.verify(auth.value);
+            // if (!token) {
+            //   return error(401, 'Unauthorized');
+            // }
 
-            const blog = await Blog.findById(params.blogId);
+            const blog = await Blog.findById(params.blogId)
+              .populate(
+                'author',
+                'username name email imageUrl createdAt bio personalWebsite',
+              )
+              .exec();
+
             if (!blog) {
               return error(404, 'Blog not found');
             }
 
-            return {
-              status: 'success',
-              blog,
-            };
+            return blog.toJSON();
           } catch (err) {
             console.log(err);
 
@@ -58,26 +61,23 @@ export const blog = new Elysia()
           params: t.Object({ blogId: t.String() }),
         },
       )
-      .get('/', async ({ error, jwt, cookie: { auth } }) => {
+      .get('/', async ({ error }) => {
         try {
-          const identity = await jwt.verify(auth.value);
-          if (!identity) {
-            return error(401, 'Unauthorized');
-          }
-
-          const user = await User.findById(identity.id);
-          if (!user) {
-            return error(404, 'User not found');
-          }
-
-          const blogs = await Blog.find({ author: user._id })
+          const blogs = await Blog.find()
             .sort({ createdAt: -1 })
+            .populate(
+              'author',
+              'email name username imageUrl createdAt bio personalWebsite',
+            )
             .exec();
+
+          if (!blogs || blogs.length === 0) {
+            return error(404, 'Blogs not found');
+          }
 
           return blogs;
         } catch (err) {
           console.log(err);
-
           return error(500, "Something's wrong");
         }
       })
