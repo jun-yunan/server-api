@@ -7,6 +7,8 @@ import { upload } from './utils/uploadImage';
 import { blog } from './controllers/blogController';
 import { user } from './controllers/userController';
 import { auth } from './controllers/authController';
+import { comment } from './controllers/commentController';
+import { like } from './controllers/likeController';
 
 const port = process.env.PORT || 4000;
 
@@ -25,6 +27,8 @@ const app = new Elysia()
   .use(user)
   .use(auth)
   .use(blog)
+  .use(comment)
+  .use(like)
   .listen(port);
 
 console.log(

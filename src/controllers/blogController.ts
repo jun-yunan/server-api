@@ -7,6 +7,8 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import cloudinary from 'cloudinary';
 import fs from 'fs';
+import mongoose from 'mongoose';
+import Like from '../models/likeModel';
 
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -42,8 +44,27 @@ export const blog = new Elysia()
             const blog = await Blog.findById(params.blogId)
               .populate(
                 'author',
-                'username name email imageUrl createdAt bio personalWebsite',
+                'username name email imageUrl createdAt bio personalWebsite _id',
               )
+              .populate({
+                path: 'comments',
+                select:
+                  'content imageUrl user votes likes replies createdAt updatedAt _id',
+                populate: {
+                  path: 'user',
+                  select:
+                    'username name email imageUrl createdAt bio personalWebsite _id',
+                },
+              })
+              .populate({
+                path: 'likes',
+                select: 'liked user blog _id createdAt updatedAt',
+                populate: {
+                  path: 'user',
+                  select:
+                    'username name email imageUrl createdAt bio personalWebsite _id',
+                },
+              })
               .exec();
 
             if (!blog) {
@@ -67,7 +88,7 @@ export const blog = new Elysia()
             .sort({ createdAt: -1 })
             .populate(
               'author',
-              'email name username imageUrl createdAt bio personalWebsite',
+              'email name username imageUrl createdAt bio personalWebsite _id',
             )
             .exec();
 
@@ -299,6 +320,189 @@ export const blog = new Elysia()
             author: t.String(),
             content: t.String(),
           }),
+        },
+      )
+      .post(
+        '/like/:blogId',
+        async ({ error, jwt, params, cookie: { auth } }) => {
+          const session = await mongoose.startSession();
+          session.startTransaction();
+          try {
+            const { blogId } = params;
+
+            if (!blogId) {
+              return error(400, 'Missing blogId');
+            }
+
+            const identity = await jwt.verify(auth.value);
+
+            if (!identity) {
+              return error(401, 'Unauthorized');
+            }
+
+            // const [user, blog] = await Promise.all([
+            //   User.findById(identity.id).session(session),
+            //   Blog.findById(blogId).session(session),
+            // ]);
+
+            const user = await User.findById(identity.id).session(session);
+            const blog = await Blog.findById(blogId).session(session);
+
+            if (!user || !blog) {
+              await session.abortTransaction();
+              return error(404, 'User or blog not found');
+            }
+
+            const like = await Like.findOne({
+              blog: blogId,
+              user: user._id,
+            });
+
+            if (like) {
+              await session.abortTransaction();
+              return error(400, 'You already liked this blog');
+            }
+
+            const newLike = new Like({
+              blog: blogId,
+              user: user._id,
+              liked: true,
+            });
+
+            await newLike.save({ session });
+
+            blog.likes.push(newLike._id);
+            await blog.save({ session });
+
+            await session.commitTransaction();
+
+            return {
+              status: 'success',
+              like: newLike,
+            };
+          } catch (err) {
+            await session.abortTransaction();
+            console.log(err);
+            return error(500, "Something's wrong");
+          } finally {
+            session.endSession();
+          }
+        },
+        {
+          params: t.Object({ blogId: t.String() }),
+        },
+      )
+      .post(
+        '/unlike/:blogId',
+        async ({ error, jwt, params, cookie: { auth } }) => {
+          const session = await mongoose.startSession();
+
+          try {
+            session.startTransaction();
+
+            const { blogId } = params;
+
+            if (!blogId) {
+              await session.abortTransaction();
+              return error(400, 'Missing blogId');
+            }
+
+            const identity = await jwt.verify(auth.value);
+            if (!identity) {
+              await session.abortTransaction();
+              return error(401, 'Unauthorized');
+            }
+
+            // Truy vấn đồng thời
+            const [user, blog] = await Promise.all([
+              User.findById(identity.id).session(session),
+              Blog.findById(blogId).session(session),
+            ]);
+
+            if (!user) {
+              await session.abortTransaction();
+              return error(404, 'User not found');
+            }
+
+            if (!blog) {
+              await session.abortTransaction();
+              return error(404, 'Blog not found');
+            }
+
+            const like = await Like.findOne({
+              blog: blogId,
+              user: user._id,
+            }).session(session);
+
+            if (!like) {
+              await session.abortTransaction();
+              return error(400, 'You have not liked this blog');
+            }
+
+            const deletedLike = await Like.findByIdAndDelete(like._id).session(
+              session,
+            );
+            if (!deletedLike) {
+              await session.abortTransaction();
+              return error(500, 'Failed to remove like');
+            }
+
+            const updateBlog = await Blog.findByIdAndUpdate(blogId, {
+              $pull: { likes: deletedLike._id },
+            }).session(session);
+
+            if (!updateBlog) {
+              await session.abortTransaction();
+              return error(500, 'Failed to update blog');
+            }
+
+            await session.commitTransaction();
+
+            return {
+              status: 'success',
+              like: deletedLike,
+            };
+          } catch (err) {
+            console.log(err);
+            await session.abortTransaction();
+            return error(500, "Something's wrong");
+          } finally {
+            session.endSession();
+          }
+        },
+        {
+          params: t.Object({ blogId: t.String() }),
+        },
+      )
+      .get(
+        '/tags',
+        async ({ error, jwt, cookie: { auth }, query }) => {
+          try {
+            const { tags } = query;
+
+            if (!tags) {
+              return error(400, 'Missing tags');
+            }
+
+            const blogs = await Blog.find({
+              tags: { $in: tags },
+            })
+              .select('title _id')
+              // .populate(
+              //   'author',
+              //   'email name username imageUrl createdAt bio personalWebsite _id',
+              // )
+              .exec();
+            if (!blogs || blogs.length === 0) {
+              return error(404, 'Blogs not found');
+            }
+            return blogs;
+          } catch (err) {
+            return error(500, "Something's wrong");
+          }
+        },
+        {
+          query: t.Object({ tags: t.Optional(t.Array(t.String())) }),
         },
       ),
   );

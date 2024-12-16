@@ -118,7 +118,7 @@ export const user = new Elysia()
               return error(500, 'Update failed');
             }
 
-            return { status: 'success', url: upload.secure_url, user };
+            return { status: 'success', url: upload.secure_url, user, bytes };
           } catch (err) {
             console.log(err);
             return error(500, "Something's wrong");
@@ -330,7 +330,7 @@ export const user = new Elysia()
             .sort({ createdAt: -1 })
             .populate(
               'author',
-              'email name username imageUrl createdAt bio personalWebsite',
+              'email name username imageUrl createdAt bio personalWebsite _id',
             )
             .exec();
 
@@ -364,7 +364,7 @@ export const user = new Elysia()
               .sort({ createdAt: -1 })
               .populate(
                 'author',
-                'email name username imageUrl createdAt bio personalWebsite',
+                'email name username imageUrl createdAt bio personalWebsite _id',
               )
               .exec();
 

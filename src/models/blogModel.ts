@@ -26,16 +26,22 @@ const blogSchema = new Schema(
     },
     comments: [
       {
-        user: String,
-        content: String,
-        votes: Number,
+        type: Schema.Types.ObjectId,
+        ref: 'Comment',
       },
     ],
+    likes: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Like',
+      },
+    ],
+    shares: [],
   },
   {
     timestamps: true,
   },
 );
-
+blogSchema.index({ tags: 1 });
 const Blog = model('Blog', blogSchema);
 export default Blog;
