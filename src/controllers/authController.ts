@@ -123,6 +123,7 @@ export const auth = new Elysia()
                 email: user.email,
               }),
               httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
               // maxAge: 7 * 86400, //7 days
               maxAge: 3000,
               // sameSite: 'lax',
