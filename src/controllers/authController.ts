@@ -126,7 +126,7 @@ export const auth = new Elysia()
               secure: process.env.NODE_ENV === 'production',
               // maxAge: 7 * 86400, //7 days
               maxAge: 3000,
-              // sameSite: 'lax',
+              sameSite: 'none',
             });
 
             return {
