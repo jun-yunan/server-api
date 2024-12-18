@@ -345,6 +345,67 @@ export const user = new Elysia()
         }
       })
       .get(
+        '/user-by-username/:username',
+        async ({ error, params }) => {
+          try {
+            const { username } = params;
+
+            if (!username) {
+              return error(400, 'Missing username');
+            }
+
+            const user = await User.findOne({ username });
+
+            if (!user) {
+              return error(404, 'User not found');
+            }
+
+            return user.toJSON();
+          } catch (err) {
+            console.log(err);
+            return error(500, "Something's wrong");
+          }
+        },
+        {
+          params: t.Object({ username: t.String() }),
+        },
+      )
+      .get(
+        '/blogs-by-username/:username',
+        async ({ error, params }) => {
+          try {
+            const { username } = params;
+            if (!username) {
+              return error(400, 'Missing username');
+            }
+
+            const user = await User.findOne({ username });
+
+            if (!user) {
+              return error(404, 'User not found');
+            }
+
+            const blogs = await Blog.find({ author: user.id })
+              .sort({ createdAt: -1 })
+              .populate(
+                'author',
+                'email name username imageUrl createdAt bio personalWebsite _id',
+              )
+              .exec();
+
+            if (!blogs || blogs.length === 0) {
+              return error(404, 'Blogs not found');
+            }
+
+            return blogs;
+          } catch (err) {
+            console.log(err);
+            return error(500, "Something's wrong");
+          }
+        },
+        { params: t.Object({ username: t.String() }) },
+      )
+      .get(
         '/blogs/:authorId',
         async ({ error, params }) => {
           try {

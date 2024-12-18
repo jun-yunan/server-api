@@ -43,5 +43,6 @@ const blogSchema = new Schema(
   },
 );
 blogSchema.index({ tags: 1 });
+blogSchema.index({ author: 1 });
 const Blog = model('Blog', blogSchema);
 export default Blog;
