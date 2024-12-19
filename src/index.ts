@@ -17,7 +17,10 @@ const app = new Elysia({})
   .use(swagger())
   .use(
     cors({
-      origin: process.env.NODE_ENV === 'production' ? '*' : '*',
+      origin:
+        process.env.NODE_ENV === 'production'
+          ? process.env.ORIGIN_CLIENT_PRODUCTION
+          : '*',
       credentials: true,
     }),
   )
