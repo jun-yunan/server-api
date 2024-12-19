@@ -9,8 +9,6 @@ import { user } from './controllers/userController';
 import { auth } from './controllers/authController';
 import { comment } from './controllers/commentController';
 import { like } from './controllers/likeController';
-import https from 'https';
-import fs from 'fs';
 
 const port = process.env.PORT || 4000;
 
@@ -36,16 +34,6 @@ const app = new Elysia({})
   .use(comment)
   .use(like)
   .listen(port);
-
-// https
-//   .createServer(
-//     {
-//       key: fs.readFileSync('blog-travel-pearl.vercel.app+2-key.pem'),
-//       cert: fs.readFileSync('blog-travel-pearl.vercel.app+2.pem'),
-//     },
-//     app,
-//   )
-//   .listen(port);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
