@@ -4,7 +4,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "NODE_ENV=production bun dist/index.js",
+    "build": "bun build src/index.ts --target bun --outdir ./dist"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.1.1",
