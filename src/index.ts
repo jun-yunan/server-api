@@ -17,8 +17,7 @@ const app = new Elysia({})
   .use(swagger())
   .use(
     cors({
-      origin: 'https://blog-travel-pearl.vercel.app',
-      // preflight: true,
+      origin: process.env.NODE_ENV === 'production' ? '*' : '*',
       credentials: true,
     }),
   )

@@ -129,8 +129,8 @@ export const auth = new Elysia()
               sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
               domain:
                 process.env.NODE_ENV === 'production'
-                  ? '.vercel.app'
-                  : undefined,
+                  ? 'blog-travel-pearl.vercel.app'
+                  : 'localhost',
               path: '/',
             });
 
