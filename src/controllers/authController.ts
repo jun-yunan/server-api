@@ -92,7 +92,7 @@ export const auth = new Elysia()
       )
       .post(
         '/sign-in',
-        async ({ jwt, set, body, error, cookie: { auth } }) => {
+        async ({ jwt, set, body, error, cookie: { auth }, response }) => {
           try {
             const { email, password } = body;
 

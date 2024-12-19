@@ -18,6 +18,8 @@ const app = new Elysia({})
   .use(
     cors({
       origin: 'https://blog-travel-pearl.vercel.app',
+      // preflight: true,
+      credentials: true,
     }),
   )
   .use(
