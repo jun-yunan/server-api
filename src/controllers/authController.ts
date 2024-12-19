@@ -129,7 +129,7 @@ export const auth = new Elysia()
               sameSite: 'none',
               domain:
                 process.env.NODE_ENV === 'production'
-                  ? '.blog-travel-pearl.vercel.app'
+                  ? 'blog-travel-pearl.vercel.app'
                   : undefined,
               path: '/',
             });
