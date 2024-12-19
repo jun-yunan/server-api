@@ -127,10 +127,7 @@ export const auth = new Elysia()
               // maxAge: 7 * 86400, //7 days
               maxAge: 4000,
               sameSite: 'none',
-              domain:
-                process.env.NODE_ENV === 'production'
-                  ? 'blog-travel-pearl.vercel.app'
-                  : '',
+              domain: process.env.NODE_ENV === 'production' ? 'vercel.app' : '',
             });
 
             return {

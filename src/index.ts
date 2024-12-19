@@ -15,7 +15,11 @@ const port = process.env.PORT || 4000;
 connect();
 const app = new Elysia()
   .use(swagger())
-  .use(cors())
+  .use(
+    cors({
+      origin: process.env.NODE_ENV === 'production' ? /.*\.vercel\.app$/ : '*',
+    }),
+  )
   .use(
     jwt({
       name: 'jwt',

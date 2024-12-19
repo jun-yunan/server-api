@@ -30,16 +30,11 @@ export const blog = new Elysia()
     app
       .get(
         '/:blogId',
-        async ({ error, jwt, cookie: { auth }, params }) => {
+        async ({ error, params }) => {
           try {
             if (!params.blogId) {
               return error(400, 'Missing blogId');
             }
-
-            // const token = await jwt.verify(auth.value);
-            // if (!token) {
-            //   return error(401, 'Unauthorized');
-            // }
 
             const blog = await Blog.findById(params.blogId)
               .populate(
@@ -370,11 +365,6 @@ export const blog = new Elysia()
             if (!identity) {
               return error(401, 'Unauthorized');
             }
-
-            // const [user, blog] = await Promise.all([
-            //   User.findById(identity.id).session(session),
-            //   Blog.findById(blogId).session(session),
-            // ]);
 
             const user = await User.findById(identity.id).session(session);
             const blog = await Blog.findById(blogId).session(session);
