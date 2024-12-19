@@ -3,6 +3,8 @@ import jwt from '@elysiajs/jwt';
 import User from '../models/userModel';
 import bcrypt from 'bcrypt';
 import cloudinary from 'cloudinary';
+import fs from 'fs';
+import https from 'https';
 
 class AuthController {
   constructor(public data: string[] = ['Moonhalo']) {}
@@ -126,7 +128,7 @@ export const auth = new Elysia()
               secure: process.env.NODE_ENV === 'production',
               // maxAge: 7 * 86400, //7 days
               maxAge: 4000,
-              sameSite: 'lax',
+              sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
               domain:
                 process.env.NODE_ENV === 'production'
                   ? 'blog-travel-pearl.vercel.app'
